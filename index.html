@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tứ Quốc Tranh Hùng - Offline Game</title>
+    
+    <!-- React & Babel (Cần mạng lần đầu để tải, sau đó trình duyệt sẽ cache) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @keyframes bounce-in {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        .animate-bounce-in { animation: bounce-in 0.6s cubic-bezier(0.215, 0.610, 0.355, 1.000) both; }
+        
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white font-sans selection:bg-purple-500 overflow-x-hidden">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICON COMPONENTS (Nhúng trực tiếp để sửa lỗi lucideReact is not defined) ---
+        const Icon = ({ size = 24, color = "currentColor", className = "", children, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+
+        const Users = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Icon>;
+        const Shield = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></Icon>;
+        const Swords = (p) => <Icon {...p}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" /><line x1="13" x2="19" y1="19" y2="13" /><line x1="16" x2="20" y1="16" y2="20" /><line x1="19" x2="21" y1="21" y2="19" /></Icon>;
+        const Trophy = (p) => <Icon {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></Icon>;
+        const Play = (p) => <Icon {...p}><polygon points="5 3 19 12 5 21 5 3" /></Icon>;
+        const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+        const Minus = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+        const DollarSign = (p) => <Icon {...p}><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></Icon>;
+        const Shuffle = (p) => <Icon {...p}><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></Icon>;
+        const List = (p) => <Icon {...p}><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></Icon>;
+        const HelpCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></Icon>;
+        const Lock = (p) => <Icon {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Icon>;
+        const CheckCircle = (p) => <Icon {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></Icon>;
+        const XCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></Icon>;
+        const ArrowRightLeft = (p) => <Icon {...p}><path d="m16 21 5-5-5-5" /><path d="M21 16H3" /><path d="m8 3-5 5 5 5" /><path d="M3 8h18" /></Icon>;
+        const ChevronRight = (p) => <Icon {...p}><polyline points="9 18 15 12 9 6" /></Icon>;
+        const Info = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></Icon>;
+
+        // --- GAME LOGIC ---
+
+        const SplitStealTournament = () => {
+            const [view, setView] = useState('intro'); // intro, setup, draw_lots, tournament, match
+            const [introSlide, setIntroSlide] = useState(0); 
+
+            const [teams, setTeams] = useState([
+                { id: 't1', name: 'Phe Đỏ (Hỏa)', score: 40, color: 'bg-red-600', border: 'border-red-500', text: 'text-red-500', slot: null },
+                { id: 't2', name: 'Phe Xanh (Thủy)', score: 40, color: 'bg-blue-600', border: 'border-blue-500', text: 'text-blue-500', slot: null },
+                { id: 't3', name: 'Phe Vàng (Kim)', score: 40, color: 'bg-yellow-600', border: 'border-yellow-500', text: 'text-yellow-500', slot: null },
+                { id: 't4', name: 'Phe Tím (Lôi)', score: 40, color: 'bg-purple-600', border: 'border-purple-500', text: 'text-purple-500', slot: null },
+            ]);
+
+            const [schedule, setSchedule] = useState([]);
+            const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+            const [tournamentPhase, setTournamentPhase] = useState('groups');
+
+            const [match, setMatch] = useState({
+                teamAId: null,
+                teamBId: null,
+                itemA: { type: 'points', value: 0 }, 
+                itemB: { type: 'points', value: 0 },
+                stage: 'setup_items', 
+                choiceA: null, 
+                choiceB: null,
+                tempResult: null,
+                historyLog: []
+            });
+
+            const [notification, setNotification] = useState('');
+
+            const updateTeamName = (id, newName) => {
+                setTeams(teams.map(t => t.id === id ? { ...t, name: newName } : t));
+            };
+
+            const adjustScore = (id, amount) => {
+                setTeams(teams.map(t => t.id === id ? { ...t, score: t.score + amount } : t));
+            };
+
+            const startDrawLots = () => {
+                setView('draw_lots');
+            };
+
+            const assignSlots = () => {
+                const slots = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
+                const updatedTeams = teams.map((team, index) => ({
+                ...team,
+                slot: slots[index]
+                }));
+                setTeams(updatedTeams);
+                
+                const getTeamBySlot = (s) => updatedTeams.find(t => t.slot === s).id;
+                
+                const groupMatches = [
+                { id: 1, round: 1, teamA: getTeamBySlot(1), teamB: getTeamBySlot(2), status: 'pending', desc: 'Vòng 1: Cặp 1 vs 2' },
+                { id: 2, round: 1, teamA: getTeamBySlot(3), teamB: getTeamBySlot(4), status: 'pending', desc: 'Vòng 1: Cặp 3 vs 4' },
+                { id: 3, round: 2, teamA: getTeamBySlot(1), teamB: getTeamBySlot(3), status: 'pending', desc: 'Vòng 2: Cặp 1 vs 3' },
+                { id: 4, round: 2, teamA: getTeamBySlot(2), teamB: getTeamBySlot(4), status: 'pending', desc: 'Vòng 2: Cặp 2 vs 4' },
+                { id: 5, round: 3, teamA: getTeamBySlot(1), teamB: getTeamBySlot(4), status: 'pending', desc: 'Vòng 3: Cặp 1 vs 4' },
+                { id: 6, round: 3, teamA: getTeamBySlot(2), teamB: getTeamBySlot(3), status: 'pending', desc: 'Vòng 3: Cặp 2 vs 3' },
+                ];
+                
+                setSchedule(groupMatches);
+                setCurrentMatchIndex(0);
+                setTournamentPhase('groups');
+                setTimeout(() => setView('tournament'), 2000);
+            };
+
+            const startNextMatch = () => {
+                const currentMatch = schedule[currentMatchIndex];
+                if (!currentMatch) {
+                    prepareFinals();
+                    return;
+                }
+                
+                setMatch({
+                teamAId: currentMatch.teamA,
+                teamBId: currentMatch.teamB,
+                itemA: { type: 'points', value: 10 },
+                itemB: { type: 'points', value: 10 },
+                stage: 'setup_items',
+                choiceA: null,
+                choiceB: null,
+                tempResult: null,
+                historyLog: []
+                });
+                setView('match');
+            };
+
+            const setChoice = (teamSide, choice) => {
+                if (teamSide === 'A') setMatch(prev => ({ ...prev, choiceA: choice }));
+                if (teamSide === 'B') setMatch(prev => ({ ...prev, choiceB: choice }));
+            };
+
+            const confirmItems = () => {
+                setMatch(prev => ({ ...prev, stage: 'decision' }));
+            };
+
+            const revealResults = () => {
+                setMatch(prev => ({ ...prev, stage: 'reveal' }));
+                setTimeout(() => {
+                    calculateOutcome();
+                }, 2500);
+            };
+
+            const calculateOutcome = () => {
+                const { choiceA, choiceB, itemA, itemB } = match;
+                let result = {
+                    outcomeType: '',
+                    rewardsA: [],
+                    rewardsB: [],
+                    msg: ''
+                };
+
+                if (choiceA === 'keep' && choiceB === 'keep') {
+                    result.outcomeType = 'keep_keep';
+                    result.rewardsA = [itemA];
+                    result.rewardsB = [itemB];
+                    result.msg = "HÒA BÌNH! Cả hai GIỮ vật phẩm của mình.";
+                } 
+                else if (choiceA === 'keep' && choiceB === 'steal') {
+                    result.outcomeType = 'keep_steal';
+                    result.rewardsA = [];
+                    result.rewardsB = [itemB, itemA];
+                    result.msg = "B CƯỚP THÀNH CÔNG! Đội B lấy tất cả. Đội A trắng tay.";
+                } 
+                else if (choiceA === 'steal' && choiceB === 'keep') {
+                    result.outcomeType = 'steal_keep';
+                    result.rewardsA = [itemA, itemB];
+                    result.rewardsB = [];
+                    result.msg = "A CƯỚP THÀNH CÔNG! Đội A lấy tất cả. Đội B trắng tay.";
+                } 
+                else if (choiceA === 'steal' && choiceB === 'steal') {
+                    result.outcomeType = 'steal_steal';
+                    result.rewardsA = [itemB];
+                    result.rewardsB = [itemA];
+                    result.msg = "TRAO ĐỔI CHIÊU THỨC! Hai bên đổi vật phẩm cho nhau.";
+                }
+
+                const hasQuestion = [...result.rewardsA, ...result.rewardsB].some(i => i.type === 'question');
+                if (hasQuestion) {
+                    setMatch(prev => ({ ...prev, stage: 'question_resolution', tempResult: result }));
+                } else {
+                    applyFinalResult(result);
+                }
+            };
+
+            const resolveQuestion = (teamSide, itemIndex, isCorrect) => {
+                const { tempResult, choiceA, choiceB } = match;
+                let updatedResult = { ...tempResult };
+                
+                const processList = (list, isStealer, opponentList) => {
+                    const item = list[itemIndex];
+                    if (item.type !== 'question') return;
+
+                    if (isCorrect) {
+                        list[itemIndex] = { type: 'points', value: item.value, resolved: true };
+                    } else {
+                        if (isStealer) {
+                            list.splice(itemIndex, 1);
+                            opponentList.push({ ...item, type: 'points', value: item.value, resolved: true, stolenBack: true });
+                        } else {
+                            list[itemIndex] = { type: 'points', value: 0, resolved: true };
+                        }
+                    }
+                };
+
+                if (teamSide === 'A') {
+                    const isStealer = (choiceA === 'steal' && choiceB === 'keep') || (choiceA === 'steal' && choiceB === 'steal'); 
+                    processList(updatedResult.rewardsA, isStealer, updatedResult.rewardsB);
+                } else {
+                    const isStealer = (choiceB === 'steal' && choiceA === 'keep') || (choiceA === 'steal' && choiceB === 'steal');
+                    processList(updatedResult.rewardsB, isStealer, updatedResult.rewardsA);
+                }
+
+                const remainingA = updatedResult.rewardsA.filter(i => i.type === 'question' && !i.resolved);
+                const remainingB = updatedResult.rewardsB.filter(i => i.type === 'question' && !i.resolved);
+
+                if (remainingA.length === 0 && remainingB.length === 0) {
+                    applyFinalResult(updatedResult);
+                } else {
+                    setMatch(prev => ({ ...prev, tempResult: updatedResult }));
+                }
+            };
+
+            const applyFinalResult = (finalResult) => {
+                let updatedTeams = [...teams];
+                const teamAIndex = updatedTeams.findIndex(t => t.id === match.teamAId);
+                const teamBIndex = updatedTeams.findIndex(t => t.id === match.teamBId);
+
+                const pointsA = finalResult.rewardsA.reduce((sum, item) => sum + (item.type === 'points' ? parseInt(item.value) : 0), 0);
+                const pointsB = finalResult.rewardsB.reduce((sum, item) => sum + (item.type === 'points' ? parseInt(item.value) : 0), 0);
+
+                updatedTeams[teamAIndex].score += pointsA;
+                updatedTeams[teamBIndex].score += pointsB;
+
+                const log = `A: ${pointsA > 0 ? '+' + pointsA : 0}đ | B: ${pointsB > 0 ? '+' + pointsB : 0}đ`;
+
+                let finalMsg = finalResult.msg;
+                if (finalResult.rewardsB.some(i => i.stolenBack)) finalMsg += " (Đội A lấy lại điểm từ câu hỏi!)";
+                if (finalResult.rewardsA.some(i => i.stolenBack)) finalMsg += " (Đội B lấy lại điểm từ câu hỏi!)";
+
+                setTeams(updatedTeams);
+                setNotification(finalMsg);
+                setMatch(prev => ({ ...prev, stage: 'result', historyLog: [log] }));
+                
+                const updatedSchedule = [...schedule];
+                updatedSchedule[currentMatchIndex].status = 'completed';
+                updatedSchedule[currentMatchIndex].result = log;
+                setSchedule(updatedSchedule);
+            };
+
+            const nextFromMatch = () => {
+                if (currentMatchIndex < schedule.length - 1) {
+                    setCurrentMatchIndex(prev => prev + 1);
+                    setView('tournament');
+                } else {
+                    if (tournamentPhase === 'groups') {
+                        prepareFinals();
+                    } else {
+                        setView('tournament');
+                    }
+                }
+            };
+
+            const prepareFinals = () => {
+                const sortedTeams = [...teams].sort((a, b) => b.score - a.score);
+                const finalsMatches = [
+                { id: 7, round: 'CK', teamA: sortedTeams[2].id, teamB: sortedTeams[3].id, status: 'pending', desc: 'TRANH HẠNG 3 (Đội 3 vs 4)' },
+                { id: 8, round: 'CK', teamA: sortedTeams[0].id, teamB: sortedTeams[1].id, status: 'pending', desc: 'CHUNG KẾT (Đội 1 vs 2)' },
+                ];
+                setSchedule([...schedule, ...finalsMatches]);
+                setCurrentMatchIndex(6);
+                setTournamentPhase('finals');
+                setView('tournament');
+            };
+
+            // --- UI COMPONENTS ---
+            const TeamCard = ({ team, displayOnly = false, isSelected = false, small = false, showSlot = false }) => (
+                <div className={`relative overflow-hidden rounded-xl transition-all duration-300 bg-slate-800 border-2 ${team.border} ${small ? 'p-2' : 'p-4'} ${isSelected ? 'ring-4 ring-white scale-105 z-10' : ''}`}>
+                    <div className={`absolute top-0 left-0 w-full h-1 ${team.color}`}></div>
+                    <div className="flex flex-col items-center">
+                        {showSlot && team.slot && (
+                            <div className="absolute top-1 right-1 bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border border-slate-600">
+                                {team.slot}
+                            </div>
+                        )}
+                        <div className={`${small ? 'w-8 h-8' : 'w-12 h-12'} rounded-full ${team.color} flex items-center justify-center mb-2 shadow-lg`}>
+                            <Users className="text-white" size={small ? 16 : 24} />
+                        </div>
+                        <h3 className={`font-bold text-white ${small ? 'text-xs' : 'text-lg'} truncate w-full text-center`}>{team.name}</h3>
+                        <div className={`mt-2 bg-slate-900/50 ${small ? 'px-2 py-0.5' : 'px-4 py-1'} rounded-full border border-slate-700`}>
+                            <span className={`font-mono font-black ${team.text} ${small ? 'text-sm' : 'text-2xl'}`}>{team.score}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const ItemDisplay = ({ item, isSecret, label }) => {
+                if (!item) return null;
+                return (
+                    <div className={`mt-4 p-3 rounded-lg border-2 ${isSecret ? 'bg-slate-800 border-slate-600 border-dashed' : 'bg-slate-700 border-yellow-500/50'} w-full max-w-[200px] text-center relative`}>
+                        <span className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-slate-900 px-2 text-[10px] text-slate-400 uppercase tracking-widest">{label}</span>
+                        {isSecret ? (
+                            <div className="flex flex-col items-center py-2">
+                                <Lock className="text-slate-500 mb-1" size={24}/>
+                                <span className="text-slate-500 text-xs font-bold">BÍ MẬT</span>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center">
+                                {item.type === 'points' ? <DollarSign className="text-green-400 mb-1" size={20}/> : <HelpCircle className="text-purple-400 mb-1" size={20}/>}
+                                <span className={`font-bold text-xl ${item.type === 'points' ? 'text-green-400' : 'text-purple-400'}`}>
+                                    {item.type === 'points' ? `+${item.value}đ` : 'CÂU HỎI'}
+                                </span>
+                                {item.type === 'question' && <span className="text-xs text-slate-300">Giá trị: {item.value}đ</span>}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const IntroView = () => {
+                return (
+                <div className="flex flex-col items-center justify-center w-full h-screen max-w-5xl animate-fade-in relative mx-auto">
+                    
+                    <div className="absolute top-4 flex gap-2">
+                    <div className={`w-3 h-3 rounded-full transition-all ${introSlide === 0 ? 'bg-purple-500 scale-125' : 'bg-slate-700'}`}></div>
+                    <div className={`w-3 h-3 rounded-full transition-all ${introSlide === 1 ? 'bg-purple-500 scale-125' : 'bg-slate-700'}`}></div>
+                    </div>
+
+                    {introSlide === 0 && (
+                    <div className="text-center animate-bounce-in">
+                        <h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 mb-6 drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]">
+                        TỨ QUỐC<br/>TRANH HÙNG
+                        </h1>
+                        <p className="text-xl md:text-2xl text-slate-300 font-light tracking-widest mb-12 uppercase border-y border-slate-700 py-2 inline-block">
+                        Đấu Trường Tâm Lý & Chiến Thuật
+                        </p>
+                        <button 
+                        onClick={() => setIntroSlide(1)}
+                        className="group relative px-8 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-full text-white font-bold text-xl transition-all flex items-center gap-3 mx-auto cursor-pointer z-50"
+                        >
+                        Xem Luật Chơi <ChevronRight className="group-hover:translate-x-1 transition-transform"/>
+                        </button>
+                    </div>
+                    )}
+
+                    {introSlide === 1 && (
+                    <div className="w-full animate-fade-in px-4">
+                        <div className="text-center mb-8">
+                        <h2 className="text-3xl font-bold text-white uppercase flex items-center justify-center gap-3">
+                            <Info className="text-blue-400"/> Luật Đặc Biệt: Vật Phẩm Bí Mật
+                        </h2>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                        <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-600">
+                            <h3 className="text-xl font-bold text-purple-400 mb-4 uppercase">Cơ Chế</h3>
+                            <ul className="space-y-3 text-slate-300 text-left">
+                            <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2"></div>Mỗi đội bốc thăm bí mật: <b>Điểm</b> hoặc <b>Câu Hỏi</b>.</li>
+                            <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 bg-green-500 rounded-full mt-2"></div>Quyết định chiến thuật: <b>GIỮ (Keep)</b> hoặc <b>CƯỚP (Steal)</b>.</li>
+                            <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2"></div><span className="text-red-400 font-bold">Rủi ro:</span> Nếu giữ phải "Câu Hỏi" (của mình hoặc cướp được), phải trả lời đúng mới được điểm. Sai sẽ mất lượt hoặc trả điểm.</li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-600 flex flex-col justify-center">
+                            <h3 className="text-xl font-bold text-purple-400 mb-4 uppercase">Ma Trận Kết Quả</h3>
+                            <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                                <div className="col-span-1"></div>
+                                <div className="font-bold text-slate-400">Đối thủ: GIỮ</div>
+                                <div className="font-bold text-slate-400">Đối thủ: CƯỚP</div>
+
+                                <div className="font-bold text-slate-400 flex items-center justify-end pr-2">Bạn: GIỮ</div>
+                                <div className="bg-green-900/30 border border-green-500/30 p-2 rounded text-green-200">Hòa bình<br/>(Ai có nấy dùng)</div>
+                                <div className="bg-red-900/30 border border-red-500/30 p-2 rounded text-red-200">Bạn mất trắng<br/>(Họ lấy tất cả)</div>
+
+                                <div className="font-bold text-slate-400 flex items-center justify-end pr-2">Bạn: CƯỚP</div>
+                                <div className="bg-green-900/30 border border-green-500/30 p-2 rounded text-green-200">Bạn lấy tất cả<br/>(Họ trắng tay)</div>
+                                <div className="bg-yellow-900/30 border border-yellow-500/30 p-2 rounded text-yellow-200">Trao đổi<br/>(Đổi vật phẩm)</div>
+                            </div>
+                        </div>
+                        </div>
+
+                        <div className="flex justify-center gap-4">
+                            <button 
+                            onClick={() => setIntroSlide(0)}
+                            className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 font-bold transition-all"
+                        >
+                            Quay Lại
+                        </button>
+                        <button 
+                            onClick={() => setView('setup')}
+                            className="px-10 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black rounded-lg text-lg shadow-lg hover:scale-105 transition-all flex items-center gap-2"
+                        >
+                            BẮT ĐẦU SETUP <Play size={20} fill="currentColor"/>
+                        </button>
+                        </div>
+                    </div>
+                    )}
+                </div>
+                );
+            };
+
+            const SetupView = () => (
+                <div className="max-w-4xl w-full space-y-8 animate-fade-in mx-auto mt-20">
+                    <div className="text-center mb-8">
+                        <h2 className="text-3xl font-bold text-white mb-2 uppercase">Thiết Lập Đội Chơi</h2>
+                        <p className="text-slate-400">Nhập tên đội và điểm khởi đầu</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {teams.map(team => (
+                            <div key={team.id} className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center gap-4">
+                                <div className={`w-4 h-full min-h-[60px] rounded-full ${team.color}`}></div>
+                                <div className="flex-grow space-y-2">
+                                    <input type="text" value={team.name} onChange={(e) => updateTeamName(team.id, e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white font-bold" />
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-slate-400 text-sm">Điểm:</span>
+                                        <button onClick={() => adjustScore(team.id, -5)} className="p-1 bg-slate-700 rounded text-white"><Minus size={12}/></button>
+                                        <input type="number" value={team.score} onChange={(e) => adjustScore(team.id, parseInt(e.target.value) - team.score)} className="w-16 bg-slate-900 border border-slate-600 rounded px-2 text-center text-white" />
+                                        <button onClick={() => adjustScore(team.id, 5)} className="p-1 bg-slate-700 rounded text-white"><Plus size={12}/></button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex justify-center mt-8">
+                        <button onClick={startDrawLots} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-12 rounded-full text-xl shadow-lg flex items-center gap-2 transition-all">
+                            <Shuffle size={24} /> Bốc Thăm & Tạo Lịch
+                        </button>
+                    </div>
+                </div>
+            );
+
+            const DrawLotsView = () => (
+                <div className="flex flex-col items-center justify-center text-center space-y-8 animate-fade-in h-screen">
+                    <h2 className="text-4xl font-black text-white">ĐANG BỐC THĂM...</h2>
+                    <div className="flex gap-4">
+                        {teams.map((t, i) => (
+                            <div key={t.id} className="animate-bounce" style={{ animationDelay: `${i * 0.2}s` }}>
+                                <TeamCard team={t} showSlot={true} />
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={assignSlots} className="mt-8 px-8 py-3 bg-green-500 hover:bg-green-400 text-slate-900 font-bold rounded-lg shadow-lg animate-pulse">
+                        XÁC NHẬN KẾT QUẢ
+                    </button>
+                </div>
+            );
+
+            const TournamentView = () => {
+                const activeMatch = schedule[currentMatchIndex];
+                const sortedTeams = [...teams].sort((a,b) => b.score - a.score);
+
+                return (
+                    <div className="max-w-6xl w-full flex flex-col md:flex-row gap-8 h-screen p-8 mx-auto">
+                        <div className="w-full md:w-1/3 bg-slate-800/80 p-6 rounded-2xl border border-slate-700 h-fit">
+                            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                <Trophy className="text-yellow-400" /> Bảng Xếp Hạng
+                            </h3>
+                            <div className="space-y-4">
+                                {sortedTeams.map((team, index) => (
+                                    <div key={team.id} className={`flex items-center gap-3 p-3 rounded-lg border ${index === 0 ? 'bg-slate-700 border-yellow-500/50' : 'bg-slate-900/50 border-slate-700'}`}>
+                                        <span className={`font-mono font-bold text-xl w-6 ${index === 0 ? 'text-yellow-400' : 'text-slate-500'}`}>#{index + 1}</span>
+                                        <div className={`w-3 h-10 ${team.color} rounded-full`}></div>
+                                        <div className="flex-grow">
+                                            <div className="font-bold text-white text-sm">{team.name}</div>
+                                            <div className={`text-xs ${team.text} font-black`}>{team.score} điểm</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="w-full md:w-2/3 flex flex-col gap-6">
+                            <div className="bg-slate-800 p-8 rounded-2xl border border-slate-600 shadow-2xl text-center relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                                {activeMatch ? (
+                                    <>
+                                        <h2 className="text-slate-400 uppercase tracking-widest text-sm mb-4 font-bold">{activeMatch.desc}</h2>
+                                        <div className="flex items-center justify-center gap-8 mb-8">
+                                            <div className="transform scale-125"><TeamCard team={teams.find(t=>t.id === activeMatch.teamA)} small={true} /></div>
+                                            <span className="text-4xl font-black italic text-slate-600">VS</span>
+                                            <div className="transform scale-125"><TeamCard team={teams.find(t=>t.id === activeMatch.teamB)} small={true} /></div>
+                                        </div>
+                                        <button onClick={startNextMatch} className="px-8 py-4 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl text-xl shadow-lg hover:scale-105 transition-transform flex items-center justify-center gap-2 mx-auto">
+                                            <Swords size={24} /> BẮT ĐẦU TRẬN ĐẤU
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="py-12">
+                                        <h2 className="text-3xl font-bold text-white mb-2">GIẢI ĐẤU KẾT THÚC</h2>
+                                        <Trophy size={64} className="text-yellow-400 mx-auto mt-6 animate-bounce" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-700 flex-grow">
+                                <h3 className="text-white font-bold mb-4 flex items-center gap-2"><List size={18}/> Lịch Thi Đấu</h3>
+                                <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                                    {schedule.map((m, idx) => (
+                                        <div key={idx} className={`p-3 rounded border flex items-center justify-between text-sm ${m.status === 'completed' ? 'bg-slate-800 opacity-60 border-slate-700' : (idx === currentMatchIndex ? 'bg-blue-900/30 border-blue-500' : 'bg-slate-800 border-slate-700')}`}>
+                                            <span className="text-slate-400 w-16">{m.round === 'CK' ? 'CK' : `Vòng ${m.round}`}</span>
+                                            <div className="flex gap-2 items-center flex-grow justify-center">
+                                                <span className={`${teams.find(t=>t.id===m.teamA).text} font-bold`}>{teams.find(t=>t.id===m.teamA).name}</span>
+                                                <span className="text-slate-600">vs</span>
+                                                <span className={`${teams.find(t=>t.id===m.teamB).text} font-bold`}>{teams.find(t=>t.id===m.teamB).name}</span>
+                                            </div>
+                                            <div className="w-24 text-right">
+                                                {m.status === 'completed' ? <span className="text-green-500 text-xs">Đã đấu</span> : idx === currentMatchIndex ? <span className="text-blue-400 font-bold animate-pulse">Sắp đấu</span> : <span className="text-slate-600">Chờ</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const MatchView = () => {
+                const teamA = teams.find(t => t.id === match.teamAId);
+                const teamB = teams.find(t => t.id === match.teamBId);
+                
+                if (match.stage === 'setup_items') {
+                    const updateItem = (side, field, val) => {
+                        setMatch(prev => ({
+                            ...prev,
+                            [side === 'A' ? 'itemA' : 'itemB']: { ...prev[side === 'A' ? 'itemA' : 'itemB'], [field]: val }
+                        }));
+                    };
+                    return (
+                        <div className="w-full max-w-3xl bg-slate-800 p-8 rounded-2xl border border-slate-600 animate-fade-in mx-auto mt-20">
+                            <h2 className="text-2xl font-bold text-white mb-6 text-center uppercase border-b border-slate-700 pb-4">Quản Trò Nhập Vật Phẩm</h2>
+                            <div className="flex gap-8 mb-8">
+                                <div className="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                    <h3 className={`font-bold ${teamA.text} mb-4`}>{teamA.name} đang giữ gì?</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-xs text-slate-400">Loại:</label>
+                                            <div className="flex gap-2 mt-1">
+                                                <button onClick={()=>updateItem('A','type','points')} className={`flex-1 py-2 rounded text-sm font-bold ${match.itemA.type==='points'?'bg-green-600 text-white':'bg-slate-700 text-slate-400'}`}>Điểm</button>
+                                                <button onClick={()=>updateItem('A','type','question')} className={`flex-1 py-2 rounded text-sm font-bold ${match.itemA.type==='question'?'bg-purple-600 text-white':'bg-slate-700 text-slate-400'}`}>Câu Hỏi</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-400">Giá trị:</label>
+                                            <input type="number" value={match.itemA.value} onChange={(e)=>updateItem('A','value',e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 mt-1 text-white font-mono font-bold" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700">
+                                    <h3 className={`font-bold ${teamB.text} mb-4`}>{teamB.name} đang giữ gì?</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-xs text-slate-400">Loại:</label>
+                                            <div className="flex gap-2 mt-1">
+                                                <button onClick={()=>updateItem('B','type','points')} className={`flex-1 py-2 rounded text-sm font-bold ${match.itemB.type==='points'?'bg-green-600 text-white':'bg-slate-700 text-slate-400'}`}>Điểm</button>
+                                                <button onClick={()=>updateItem('B','type','question')} className={`flex-1 py-2 rounded text-sm font-bold ${match.itemB.type==='question'?'bg-purple-600 text-white':'bg-slate-700 text-slate-400'}`}>Câu Hỏi</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-slate-400">Giá trị:</label>
+                                            <input type="number" value={match.itemB.value} onChange={(e)=>updateItem('B','value',e.target.value)} className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 mt-1 text-white font-mono font-bold" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onClick={confirmItems} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg">XÁC NHẬN & BẮT ĐẦU</button>
+                        </div>
+                    );
+                }
+
+                const AdminControl = ({ side, team, currentChoice, setFunc }) => (
+                    <div className="bg-slate-800 p-4 rounded-xl border border-slate-600 w-full mt-4">
+                        <p className="text-slate-400 text-xs uppercase mb-2 text-center">QUYẾT ĐỊNH CỦA {team.name}</p>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setFunc('keep')}
+                                className={`flex-1 py-3 rounded-lg font-bold text-sm flex flex-col items-center gap-1 transition-all ${currentChoice === 'keep' ? 'bg-blue-600 text-white ring-2 ring-white scale-105' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                            >
+                                <Shield size={20} /> GIỮ
+                            </button>
+                            <button 
+                                onClick={() => setFunc('steal')}
+                                className={`flex-1 py-3 rounded-lg font-bold text-sm flex flex-col items-center gap-1 transition-all ${currentChoice === 'steal' ? 'bg-red-600 text-white ring-2 ring-white scale-105' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                            >
+                                <Swords size={20} /> CƯỚP
+                            </button>
+                        </div>
+                    </div>
+                );
+
+                const ChoiceCard = ({ choice, hidden }) => (
+                    <div className={`w-40 h-56 rounded-2xl border-4 flex flex-col items-center justify-center shadow-2xl transition-all duration-500 ${hidden ? 'bg-slate-800 border-slate-600' : choice === 'keep' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-red-600 border-red-400 text-white'}`}>
+                        {hidden ? (
+                            choice ? (
+                                <>
+                                    <Lock className="text-white mb-2" size={40} />
+                                    <p className="text-slate-400 text-xs font-bold uppercase">ĐÃ CHỐT</p>
+                                </>
+                            ) : <div className="text-slate-600 animate-pulse text-sm">Đang chọn...</div>
+                        ) : (
+                            <>
+                                {choice === 'keep' ? <Shield size={60} className="mb-4" /> : <Swords size={60} className="mb-4" />}
+                                <h2 className="text-2xl font-black uppercase tracking-wider">{choice === 'keep' ? 'GIỮ' : 'CƯỚP'}</h2>
+                            </>
+                        )}
+                    </div>
+                );
+
+                return (
+                    <div className="w-full max-w-6xl flex flex-col items-center animate-fade-in relative mx-auto mt-10">
+                        
+                        {match.stage === 'question_resolution' && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                                <div className="bg-slate-900 border border-purple-500 p-8 rounded-2xl max-w-2xl w-full text-center shadow-[0_0_50px_rgba(168,85,247,0.3)]">
+                                    <HelpCircle className="mx-auto text-purple-400 w-16 h-16 mb-4 animate-bounce" />
+                                    <h3 className="text-3xl font-bold text-white mb-2">THỬ THÁCH CÂU HỎI!</h3>
+                                    
+                                    <div className="grid gap-6 mt-8">
+                                        {match.tempResult.rewardsA.map((item, idx) => item.type === 'question' && !item.resolved && (
+                                            <div key={`A-${idx}`} className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                                                <p className={`font-bold text-lg ${teamA.text} mb-2`}>{teamA.name} trả lời câu hỏi {item.value}đ</p>
+                                                <div className="flex gap-4 justify-center">
+                                                    <button onClick={()=>resolveQuestion('A', idx, true)} className="flex items-center gap-2 px-6 py-2 bg-green-600 rounded-lg font-bold hover:bg-green-500"><CheckCircle/> Đúng</button>
+                                                    <button onClick={()=>resolveQuestion('A', idx, false)} className="flex items-center gap-2 px-6 py-2 bg-red-600 rounded-lg font-bold hover:bg-red-500"><XCircle/> Sai</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {match.tempResult.rewardsB.map((item, idx) => item.type === 'question' && !item.resolved && (
+                                            <div key={`B-${idx}`} className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                                                <p className={`font-bold text-lg ${teamB.text} mb-2`}>{teamB.name} trả lời câu hỏi {item.value}đ</p>
+                                                <div className="flex gap-4 justify-center">
+                                                    <button onClick={()=>resolveQuestion('B', idx, true)} className="flex items-center gap-2 px-6 py-2 bg-green-600 rounded-lg font-bold hover:bg-green-500"><CheckCircle/> Đúng</button>
+                                                    <button onClick={()=>resolveQuestion('B', idx, false)} className="flex items-center gap-2 px-6 py-2 bg-red-600 rounded-lg font-bold hover:bg-red-500"><XCircle/> Sai</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex flex-col md:flex-row items-center justify-center gap-16 w-full mb-8">
+                            <div className="flex flex-col items-center gap-2">
+                                <TeamCard team={teamA} displayOnly={true} />
+                                <ItemDisplay item={match.itemA} isSecret={match.stage === 'decision'} label="Đang giữ" />
+                                <div className="mt-4">
+                                    <ChoiceCard choice={match.choiceA} hidden={match.stage !== 'reveal' && match.stage !== 'question_resolution' && match.stage !== 'result'} />
+                                </div>
+                                {match.stage === 'decision' && <AdminControl side="A" team={teamA} currentChoice={match.choiceA} setFunc={(c)=>setChoice('A',c)} />}
+                            </div>
+
+                            <div className="flex flex-col items-center justify-center gap-4 z-10 h-full">
+                                <div className="text-6xl font-black text-slate-800 italic">VS</div>
+                                {match.stage === 'decision' && match.choiceA && match.choiceB && (
+                                    <button onClick={revealResults} className="bg-green-500 hover:bg-green-400 text-slate-900 font-black py-4 px-10 rounded-xl shadow-[0_0_30px_rgba(34,197,94,0.6)] animate-pulse text-xl">
+                                        CÔNG BỐ
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col items-center gap-2">
+                                <TeamCard team={teamB} displayOnly={true} />
+                                <ItemDisplay item={match.itemB} isSecret={match.stage === 'decision'} label="Đang giữ" />
+                                <div className="mt-4">
+                                    <ChoiceCard choice={match.choiceB} hidden={match.stage !== 'reveal' && match.stage !== 'question_resolution' && match.stage !== 'result'} />
+                                </div>
+                                {match.stage === 'decision' && <AdminControl side="B" team={teamB} currentChoice={match.choiceB} setFunc={(c)=>setChoice('B',c)} />}
+                            </div>
+                        </div>
+
+                        {match.stage === 'result' && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                                <div className="bg-slate-800 border-2 border-slate-600 p-8 rounded-3xl max-w-lg w-full text-center shadow-2xl animate-bounce-in relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-500 to-red-500"></div>
+                                    <h3 className="text-3xl font-black text-white mb-2 uppercase italic tracking-tighter">KẾT QUẢ</h3>
+                                    
+                                    <div className="flex justify-center gap-4 mb-4 mt-6">
+                                        {match.choiceA === 'keep' && match.choiceB === 'keep' ? <Shield className="text-blue-400 w-16 h-16"/> :
+                                        match.choiceA === 'steal' && match.choiceB === 'steal' ? <ArrowRightLeft className="text-yellow-400 w-16 h-16"/> :
+                                        <Swords className="text-red-500 w-16 h-16"/>}
+                                    </div>
+
+                                    <div className="mb-8 text-xl text-slate-200 font-medium leading-relaxed px-4">
+                                        {notification}
+                                    </div>
+                                    <button onClick={nextFromMatch} className="w-full py-4 bg-white text-slate-900 font-black rounded-xl hover:bg-slate-200 transition-colors uppercase tracking-widest text-lg shadow-lg">
+                                        Tiếp Tục Giải Đấu
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="w-full min-h-screen">
+                    {view === 'intro' && <IntroView />}
+                    {view === 'setup' && <SetupView />}
+                    {view === 'draw_lots' && <DrawLotsView />}
+                    {view === 'tournament' && <TournamentView />}
+                    {view === 'match' && <MatchView />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SplitStealTournament />);
+    </script>
+</body>
+</html>
